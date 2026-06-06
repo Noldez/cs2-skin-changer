@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS2 Skin Changer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1115; color: #e0e0e0; font-family: 'Segoe UI', sans-serif; min-height: 100vh; }
+
+  header { background: #1a1d24; border-bottom: 1px solid #2a2d36; padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 20px; font-weight: 700; color: #e8a045; letter-spacing: 1px; }
+  .steam-input { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .steam-input label { font-size: 13px; color: #888; }
+  .steam-input input { background: #252830; border: 1px solid #3a3d48; border-radius: 6px; color: #e0e0e0; padding: 7px 12px; font-size: 13px; width: 200px; }
+  .steam-input input:focus { outline: none; border-color: #e8a045; }
+
+  .tabs { display: flex; gap: 2px; background: #1a1d24; padding: 0 24px; border-bottom: 1px solid #2a2d36; }
+  .tab { padding: 14px 20px; font-size: 13px; font-weight: 600; cursor: pointer; color: #888; border-bottom: 3px solid transparent; transition: all .15s; letter-spacing: .5px; }
+  .tab:hover { color: #ccc; }
+  .tab.active { color: #e8a045; border-bottom-color: #e8a045; }
+
+  .main { display: flex; height: calc(100vh - 108px); }
+
+  .sidebar { width: 220px; background: #151820; border-right: 1px solid #2a2d36; overflow-y: auto; flex-shrink: 0; }
+  .sidebar-group { padding: 8px 0; border-bottom: 1px solid #2a2d36; }
+  .sidebar-group-title { padding: 8px 16px; font-size: 11px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 1px; }
+  .sidebar-item { padding: 9px 16px; font-size: 13px; cursor: pointer; transition: background .1s; display: flex; align-items: center; gap: 8px; }
+  .sidebar-item:hover { background: #1e2230; }
+  .sidebar-item.active { background: #252a3a; color: #e8a045; }
+  .sidebar-item .equipped-dot { width: 7px; height: 7px; border-radius: 50%; background: #4caf50; margin-left: auto; flex-shrink: 0; }
+
+  .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .search-bar { padding: 12px 16px; border-bottom: 1px solid #2a2d36; background: #151820; }
+  .search-bar input { width: 100%; background: #252830; border: 1px solid #3a3d48; border-radius: 6px; color: #e0e0e0; padding: 8px 12px; font-size: 13px; }
+  .search-bar input:focus { outline: none; border-color: #e8a045; }
+
+  .skin-grid { flex: 1; overflow-y: auto; padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; align-content: start; }
+  .skin-card { background: #1e2230; border: 1px solid #2a2d36; border-radius: 8px; cursor: pointer; transition: all .15s; overflow: hidden; position: relative; }
+  .skin-card:hover { border-color: #e8a045; transform: translateY(-2px); }
+  .skin-card.selected { border-color: #4caf50; background: #1a2a1a; }
+  .skin-card img { width: 100%; height: 90px; object-fit: contain; background: #252a36; padding: 6px; }
+  .skin-card .skin-name { padding: 6px 8px; font-size: 11px; color: #ccc; line-height: 1.3; }
+  .skin-card .selected-badge { position: absolute; top: 6px; right: 6px; background: #4caf50; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 11px; }
+
+  .no-content { flex: 1; display: flex; align-items: center; justify-content: center; color: #555; font-size: 14px; }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.75); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal { background: #1a1d24; border: 1px solid #2a2d36; border-radius: 12px; width: 440px; max-height: 90vh; overflow-y: auto; }
+  .modal-header { padding: 20px 24px 16px; border-bottom: 1px solid #2a2d36; display: flex; justify-content: space-between; align-items: flex-start; }
+  .modal-header h2 { font-size: 16px; font-weight: 700; color: #e0e0e0; }
+  .modal-header .close { background: none; border: none; color: #666; font-size: 20px; cursor: pointer; padding: 0 4px; }
+  .modal-header .close:hover { color: #e0e0e0; }
+  .modal-body { padding: 20px 24px; }
+  .modal-img { width: 100%; height: 160px; object-fit: contain; background: #252a36; border-radius: 8px; margin-bottom: 20px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group label { display: block; font-size: 12px; color: #888; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+  .form-group input[type=range] { width: 100%; accent-color: #e8a045; }
+  .form-group input[type=number], .form-group input[type=text] { width: 100%; background: #252830; border: 1px solid #3a3d48; border-radius: 6px; color: #e0e0e0; padding: 8px 12px; font-size: 13px; }
+  .form-group input:focus { outline: none; border-color: #e8a045; }
+  .wear-labels { display: flex; justify-content: space-between; font-size: 11px; color: #666; margin-top: 4px; }
+  .wear-value { text-align: center; font-size: 13px; color: #e8a045; margin-top: 4px; font-weight: 600; }
+  .checkbox-row { display: flex; align-items: center; gap: 10px; }
+  .checkbox-row input[type=checkbox] { accent-color: #e8a045; width: 16px; height: 16px; }
+  .checkbox-row label { font-size: 13px; color: #ccc; text-transform: none; letter-spacing: 0; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid #2a2d36; display: flex; gap: 10px; }
+  .btn { padding: 10px 20px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; transition: all .15s; }
+  .btn-primary { background: #e8a045; color: #000; flex: 1; }
+  .btn-primary:hover { background: #f0b060; }
+  .btn-danger { background: #c0392b; color: #fff; }
+  .btn-danger:hover { background: #e74c3c; }
+  .btn-secondary { background: #2a2d36; color: #ccc; }
+  .btn-secondary:hover { background: #353840; }
+
+  /* Agent grid (2 columns T/CT) */
+  .agent-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 12px; overflow-y: auto; flex: 1; }
+  .agent-column h3 { font-size: 13px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; padding: 0 4px; }
+  .agent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: #4caf50; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 600; z-index: 200; animation: fadeIn .2s ease; }
+  .toast.error { background: #c0392b; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: #111; } ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CS2 SKIN CHANGER</h1>
+  <div class="steam-input">
+    <label>Steam ID:</label>
+    <input type="text" id="steamIdInput" placeholder="76561198XXXXXXXXX" />
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="weapons">Weapons</div>
+  <div class="tab" data-tab="knives">Knives</div>
+  <div class="tab" data-tab="gloves">Gloves</div>
+  <div class="tab" data-tab="agents">Agents</div>
+  <div class="tab" data-tab="music">Music</div>
+  <div class="tab" data-tab="custom">Custom</div>
+</div>
+
+<div class="main" id="mainContent"></div>
+
+<!-- Wear Modal -->
+<div class="modal-overlay" id="modalOverlay" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h2 id="modalTitle">Apply Skin</h2>
+        <div style="font-size:12px;color:#888;margin-top:4px" id="modalWeapon"></div>
+      </div>
+      <button class="close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <img class="modal-img" id="modalImg" src="" alt="" />
+      <div class="form-group">
+        <label>Wear</label>
+        <input type="range" id="wearSlider" min="0.000001" max="1" step="0.001" value="0.01" oninput="updateWearDisplay()" />
+        <div class="wear-labels"><span>Factory New</span><span>Minimal Wear</span><span>Field-Tested</span><span>Well-Worn</span><span>Battle-Scarred</span></div>
+        <div class="wear-value" id="wearValue">0.0100</div>
+      </div>
+      <div class="form-group">
+        <label>Pattern Seed (0–1000)</label>
+        <input type="number" id="seedInput" min="0" max="1000" value="0" />
+      </div>
+      <div class="form-group">
+        <label>Name Tag</label>
+        <input type="text" id="nametagInput" maxlength="128" placeholder="Custom name..." />
+      </div>
+      <div class="form-group">
+        <div class="checkbox-row">
+          <input type="checkbox" id="stattrakCheck" />
+          <label for="stattrakCheck">StatTrak™</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="removeSkinBtn" onclick="removeSkin()" style="display:none">Remove</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSkin()">Apply Skin</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let catalog = null;
+let customSkins = [];
+let loadout = { skins: [], knives: [], gloves: [], agents: [], music: [], customModels: [] };
+let activeTab = "weapons";
+let selectedWeaponDefindex = null;
+let modalData = null;
+
+const WEAPON_GROUPS = {
+  "Rifles": [7, 8, 9, 10, 11, 13, 16, 38, 39, 40, 60],
+  "Pistols": [1, 2, 3, 4, 30, 32, 36, 61, 63, 64],
+  "SMGs": [17, 19, 23, 24, 26, 33, 34],
+  "Heavy": [14, 25, 27, 28, 29, 35],
+};
+
+const WEAPON_NAMES = {
+  1:"Desert Eagle",2:"Dual Berettas",3:"Five-SeveN",4:"Glock-18",7:"AK-47",8:"AUG",9:"AWP",
+  10:"FAMAS",11:"G3SG1",13:"Galil AR",14:"M249",16:"M4A4",17:"MAC-10",19:"P90",23:"MP5-SD",
+  24:"UMP-45",25:"XM1014",26:"PP-Bizon",27:"MAG-7",28:"Negev",29:"Sawed-Off",30:"Tec-9",
+  32:"HKP2000",33:"MP7",34:"MP9",35:"Nova",36:"P250",38:"SCAR-20",39:"SG 553",40:"SSG 08",
+  60:"M4A1-S",61:"USP-S",63:"CZ75-Auto",64:"R8 Revolver",
+};
+
+const KNIFE_DEFINDEXES = [500,505,506,507,508,509,512,514,515,516,517,518,519,520,521,522,523,524,525,526];
+const KNIFE_NAMES = {
+  500:"Bayonet",505:"Flip Knife",506:"Gut Knife",507:"Karambit",508:"M9 Bayonet",509:"Huntsman Knife",
+  512:"Falchion Knife",514:"Bowie Knife",515:"Butterfly Knife",516:"Shadow Daggers",517:"Paracord Knife",
+  518:"Survival Knife",519:"Ursus Knife",520:"Navaja Knife",521:"Nomad Knife",522:"Stiletto Knife",
+  523:"Talon Knife",524:"Skeleton Knife",525:"Kukri Knife",526:"Classic Knife",
+};
+
+const GLOVE_NAMES = {
+  5:"Sport Gloves",6:"Driver Gloves",41:"Hand Wraps",44:"Moto Gloves",4725:"Specialist Gloves",4768:"Hydra Gloves",
+};
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+const steamIdInput = document.getElementById("steamIdInput");
+steamIdInput.value = localStorage.getItem("steamId") || "";
+steamIdInput.addEventListener("change", () => {
+  localStorage.setItem("steamId", steamIdInput.value.trim());
+  refreshLoadout();
+});
+
+async function init() {
+  try {
+    const [catRes, customRes] = await Promise.all([fetch("/api/catalog"), fetch("/api/custom-skins")]);
+    catalog = await catRes.json();
+    customSkins = await customRes.json();
+    await refreshLoadout();
+    renderTab();
+  } catch(e) {
+    showToast("Failed to load catalog: " + e.message, true);
+  }
+}
+
+async function refreshLoadout() {
+  const sid = getSteamId();
+  if (!sid) return;
+  try {
+    const [loadoutRes, customModelRes] = await Promise.all([
+      fetch(`/api/loadout/${sid}`),
+      fetch(`/api/custom-models/${sid}`)
+    ]);
+    loadout = await loadoutRes.json();
+    loadout.customModels = await customModelRes.json();
+    renderTab();
+  } catch(e) {}
+}
+
+function getSteamId() {
+  return steamIdInput.value.trim();
+}
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll(".tab").forEach(t => {
+  t.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+    t.classList.add("active");
+    activeTab = t.dataset.tab;
+    selectedWeaponDefindex = null;
+    renderTab();
+  });
+});
+
+function renderTab() {
+  const main = document.getElementById("mainContent");
+  if (activeTab === "weapons") renderWeaponsTab(main);
+  else if (activeTab === "knives") renderKnivesTab(main);
+  else if (activeTab === "gloves") renderGlovesTab(main);
+  else if (activeTab === "agents") renderAgentsTab(main);
+  else if (activeTab === "music") renderMusicTab(main);
+  else if (activeTab === "custom") renderCustomTab(main);
+}
+
+// ─── Weapons ──────────────────────────────────────────────────────────────────
+function renderWeaponsTab(main) {
+  const equippedDefindexes = new Set(loadout.skins.map(s => parseInt(s.ItemId)));
+  if (!selectedWeaponDefindex) selectedWeaponDefindex = 7; // Default AK-47
+
+  const sidebar = `<div class="sidebar">${
+    Object.entries(WEAPON_GROUPS).map(([group, defindexes]) => `
+      <div class="sidebar-group">
+        <div class="sidebar-group-title">${group}</div>
+        ${defindexes.map(d => `
+          <div class="sidebar-item ${d === selectedWeaponDefindex ? 'active' : ''}" onclick="selectWeapon(${d})">
+            ${WEAPON_NAMES[d] || d}
+            ${equippedDefindexes.has(d) ? '<span class="equipped-dot"></span>' : ''}
+          </div>
+        `).join('')}
+      </div>
+    `).join('')
+  }</div>`;
+
+  main.innerHTML = sidebar + `
+    <div class="content">
+      <div class="search-bar"><input type="text" id="skinSearch" placeholder="Search skins..." oninput="filterSkins()" /></div>
+      <div class="skin-grid" id="skinGrid"></div>
+    </div>`;
+
+  renderSkinGrid();
+}
+
+function selectWeapon(defindex) {
+  selectedWeaponDefindex = defindex;
+  renderTab();
+}
+
+function renderSkinGrid() {
+  if (!catalog) return;
+  const query = (document.getElementById("skinSearch")?.value || "").toLowerCase();
+  const equipped = loadout.skins.find(s => parseInt(s.ItemId) === selectedWeaponDefindex);
+
+  let skins = catalog.skins.filter(s => s.weapon_defindex === selectedWeaponDefindex);
+  if (query) skins = skins.filter(s => s.paint_name.toLowerCase().includes(query));
+
+  const grid = document.getElementById("skinGrid");
+  if (!grid) return;
+  grid.innerHTML = skins.map(s => {
+    const isSelected = equipped && parseInt(equipped.PaintId) === s.paint;
+    return `<div class="skin-card ${isSelected ? 'selected' : ''}" onclick="openSkinModal(${JSON.stringify(s).replace(/"/g, '&quot;')})">
+      <img src="${s.image}" alt="${s.paint_name}" loading="lazy" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%2290%22><rect fill=%22%23252a36%22 width=%22100%22 height=%2290%22/></svg>'" />
+      <div class="skin-name">${s.paint_name}</div>
+      ${isSelected ? '<div class="selected-badge">✓</div>' : ''}
+    </div>`;
+  }).join('') || '<div class="no-content">No skins found</div>';
+}
+
+function filterSkins() { renderSkinGrid(); }
+
+// ─── Knives ───────────────────────────────────────────────────────────────────
+function renderKnivesTab(main) {
+  if (!selectedWeaponDefindex) selectedWeaponDefindex = 500;
+  const equippedKnife = loadout.knives[0];
+
+  const sidebar = `<div class="sidebar">
+    <div class="sidebar-group">
+      <div class="sidebar-item ${!equippedKnife && selectedWeaponDefindex === -1 ? 'active' : ''}" onclick="selectKnifeType(-1)">Default Knife</div>
+      ${KNIFE_DEFINDEXES.map(d => `
+        <div class="sidebar-item ${d === selectedWeaponDefindex ? 'active' : ''}" onclick="selectKnifeType(${d})">
+          ${KNIFE_NAMES[d]}
+          ${equippedKnife && parseInt(equippedKnife.ItemId) === d ? '<span class="equipped-dot"></span>' : ''}
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+
+  main.innerHTML = sidebar + `
+    <div class="content">
+      <div class="search-bar"><input type="text" id="knifeSearch" placeholder="Search knife skins..." oninput="filterKnifeSkins()" /></div>
+      <div class="skin-grid" id="knifeGrid"></div>
+    </div>`;
+
+  if (selectedWeaponDefindex === -1) {
+    document.getElementById("knifeGrid").innerHTML = `
+      <div style="grid-column:1/-1;padding:20px">
+        <button class="btn btn-danger" onclick="removeKnife()" style="width:auto">Remove Knife</button>
+      </div>`;
+  } else {
+    renderKnifeSkinGrid();
+  }
+}
+
+function selectKnifeType(defindex) {
+  selectedWeaponDefindex = defindex;
+  renderTab();
+}
+
+function renderKnifeSkinGrid() {
+  if (!catalog) return;
+  const query = (document.getElementById("knifeSearch")?.value || "").toLowerCase();
+  const equippedKnife = loadout.knives[0];
+  const equippedSkin = loadout.skins.find(s => parseInt(s.ItemId) === selectedWeaponDefindex);
+
+  let skins = catalog.skins.filter(s => s.weapon_defindex === selectedWeaponDefindex);
+  if (query) skins = skins.filter(s => s.paint_name.toLowerCase().includes(query));
+
+  const grid = document.getElementById("knifeGrid");
+  if (!grid) return;
+  grid.innerHTML = skins.map(s => {
+    const isSelected = equippedKnife && parseInt(equippedKnife.ItemId) === selectedWeaponDefindex && equippedSkin && parseInt(equippedSkin.PaintId) === s.paint;
+    return `<div class="skin-card ${isSelected ? 'selected' : ''}" onclick="openKnifeModal(${JSON.stringify(s).replace(/"/g, '&quot;')})">
+      <img src="${s.image}" alt="${s.paint_name}" loading="lazy" onerror="this.style.background='#252a36'" />
+      <div class="skin-name">${s.paint_name}</div>
+      ${isSelected ? '<div class="selected-badge">✓</div>' : ''}
+    </div>`;
+  }).join('') || '<div class="no-content">No skins for this knife</div>';
+}
+
+function filterKnifeSkins() { renderKnifeSkinGrid(); }
+
+async function removeKnife() {
+  const sid = getSteamId();
+  if (!sid) return showToast("Enter your Steam ID first", true);
+  await api("DELETE", `/api/knife/${sid}`);
+  showToast("Knife removed");
+  await refreshLoadout();
+}
+
+// ─── Gloves ───────────────────────────────────────────────────────────────────
+function renderGlovesTab(main) {
+  if (!catalog) return;
+  if (!selectedWeaponDefindex) selectedWeaponDefindex = null;
+
+  const gloveDefindexes = [...new Set(catalog.gloves.map(g => g.weapon_defindex))].filter(Boolean);
+  const equippedGlove = loadout.gloves[0];
+
+  const sidebar = `<div class="sidebar">
+    <div class="sidebar-group">
+      <div class="sidebar-item ${selectedWeaponDefindex === -1 ? 'active' : ''}" onclick="selectGloveType(-1)">Default Gloves</div>
+      ${gloveDefindexes.map(d => {
+        const sample = catalog.gloves.find(g => g.weapon_defindex === d);
+        return `<div class="sidebar-item ${d === selectedWeaponDefindex ? 'active' : ''}" onclick="selectGloveType(${d})">
+          ${sample ? sample.paint_name.split('|')[0].trim() : `Gloves ${d}`}
+          ${equippedGlove && parseInt(equippedGlove.ItemId) === d ? '<span class="equipped-dot"></span>' : ''}
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+
+  main.innerHTML = sidebar + `
+    <div class="content">
+      <div class="search-bar"><input type="text" id="gloveSearch" placeholder="Search glove skins..." oninput="filterGloveSkins()" /></div>
+      <div class="skin-grid" id="gloveGrid"></div>
+    </div>`;
+
+  if (selectedWeaponDefindex === -1) {
+    document.getElementById("gloveGrid").innerHTML = `
+      <div style="grid-column:1/-1;padding:20px">
+        <button class="btn btn-danger" onclick="removeGloves()" style="width:auto">Remove Gloves</button>
+      </div>`;
+  } else if (selectedWeaponDefindex) {
+    renderGloveSkinGrid();
+  }
+}
+
+function selectGloveType(defindex) {
+  selectedWeaponDefindex = defindex;
+  renderTab();
+}
+
+function renderGloveSkinGrid() {
+  if (!catalog) return;
+  const query = (document.getElementById("gloveSearch")?.value || "").toLowerCase();
+  let gloves = catalog.gloves.filter(g => g.weapon_defindex === selectedWeaponDefindex);
+  if (query) gloves = gloves.filter(g => g.paint_name.toLowerCase().includes(query));
+
+  const equippedGlove = loadout.gloves[0];
+  const grid = document.getElementById("gloveGrid");
+  if (!grid) return;
+  grid.innerHTML = gloves.map(g => {
+    const isSelected = equippedGlove && parseInt(equippedGlove.ItemId) === selectedWeaponDefindex;
+    return `<div class="skin-card ${isSelected ? 'selected' : ''}" onclick="applyGlove(${g.weapon_defindex}, ${g.paint})">
+      <img src="${g.image}" alt="${g.paint_name}" loading="lazy" />
+      <div class="skin-name">${g.paint_name.split('|')[1]?.trim() || g.paint_name}</div>
+      ${isSelected ? '<div class="selected-badge">✓</div>' : ''}
+    </div>`;
+  }).join('') || '<div class="no-content">No skins found</div>';
+}
+
+function filterGloveSkins() { renderGloveSkinGrid(); }
+
+async function applyGlove(defindex, paintId) {
+  const sid = getSteamId();
+  if (!sid) return showToast("Enter your Steam ID first", true);
+  await api("POST", "/api/gloves", { steamId: sid, defindex });
+  // Also save glove skin cosmetic
+  await api("POST", "/api/skin", { steamId: sid, defindex, paintId, wear: 0.01, seed: 0, stattrak: false, nametag: null });
+  showToast("Gloves applied!");
+  await refreshLoadout();
+}
+
+async function removeGloves() {
+  const sid = getSteamId();
+  if (!sid) return showToast("Enter your Steam ID first", true);
+  await api("DELETE", `/api/gloves/${sid}`);
+  showToast("Gloves removed");
+  await refreshLoadout();
+}
+
+// ─── Agents ───────────────────────────────────────────────────────────────────
+function renderAgentsTab(main) {
+  if (!catalog) return;
+  const ctAgents = catalog.agents.filter(a => a.team === 3);
+  const tAgents = catalog.agents.filter(a => a.team === 2);
+  const equippedCT = loadout.agents.find(a => parseInt(a.Team) === 3);
+  const equippedT = loadout.agents.find(a => parseInt(a.Team) === 2);
+
+  const agentCard = (a, equipped) => `
+    <div class="skin-card ${equipped && parseInt(equipped.ItemId) === a.id ? 'selected' : ''}" onclick="applyAgent(${a.id}, ${a.team})">
+      <img src="${a.image}" alt="${a.agent_name}" loading="lazy" />
+      <div class="skin-name">${a.agent_name}</div>
+      ${equipped && parseInt(equipped.ItemId) === a.id ? '<div class="selected-badge">✓</div>' : ''}
+    </div>`;
+
+  main.innerHTML = `<div class="agent-columns">
+    <div>
+      <h3>CT Agents</h3>
+      <div class="agent-grid">${ctAgents.map(a => agentCard(a, equippedCT)).join('')}</div>
+    </div>
+    <div>
+      <h3>T Agents</h3>
+      <div class="agent-grid">${tAgents.map(a => agentCard(a, equippedT)).join('')}</div>
+    </div>
+  </div>`;
+}
+
+async function applyAgent(defindex, team) {
+  const sid = getSteamId();
+  if (!sid) return showToast("Enter your Steam ID first", true);
+  await api("POST", "/api/agent", { steamId: sid, defindex, team });
+  showToast("Agent applied!");
+  await refreshLoadout();
+}
+
+// ─── Music ────────────────────────────────────────────────────────────────────
+function renderMusicTab(main) {
+  if (!catalog) return;
+  const equippedMusic = loadout.music[0];
+
+  main.innerHTML = `<div class="content">
+    <div class="search-bar"><input type="text" id="musicSearch" placeholder="Search music kits..." oninput="filterMusic()" /></div>
+    <div class="skin-grid" id="musicGrid"></div>
+  </div>`;
+
+  renderMusicGrid(equippedMusic);
+}
+
+function renderMusicGrid(equipped) {
+  if (!catalog) return;
+  const query = (document.getElementById("musicSearch")?.value || "").toLowerCase();
+  let music = catalog.music;
+  if (query) music = music.filter(m => m.name.toLowerCase().includes(query));
+
+  document.getElementById("musicGrid").innerHTML = music.map(m => {
+    const isSelected = equipped && parseInt(equipped.ItemId) === m.id;
+    return `<div class="skin-card ${isSelected ? 'selected' : ''}" onclick="applyMusic(${m.id})">
+      <img src="${m.image}" alt="${m.name}" loading="lazy" />
+      <div class="skin-name">${m.name}</div>
+      ${isSelected ? '<div class="selected-badge">✓</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function filterMusic() { renderMusicGrid(loadout.music[0]); }
+
+async function applyMusic(musicId) {
+  const sid = getSteamId();
+  if (!sid) return showToast("Enter your Steam ID first", true);
+  await api("POST", "/api/music", { steamId: sid, musicId });
+  showToast("Music kit applied!");
+  await refreshLoadout();
+}
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+function openSkinModal(skin) {
+  const equipped = loadout.skins.find(s => parseInt(s.ItemId) === skin.weapon_defindex && parseInt(s.PaintId) === skin.paint);
+  modalData = { type: "skin", skin };
+
+  document.getElementById("modalTitle").textContent = skin.paint_name;
+  document.getElementById("modalWeapon").textContent = skin.weapon_name;
+  document.getElementById("modalImg").src = skin.image;
+  document.getElementById("wearSlider").value = equipped?.Wear || 0.01;
+  document.getElementById("seedInput").value = equipped?.Seed || 0;
+  document.getElementById("nametagInput").value = equipped?.NameTag || "";
+  document.getElementById("stattrakCheck").checked = equipped?.StatTrak !== null && equipped?.StatTrak !== undefined;
+  document.getElementById("removeSkinBtn").style.display = equipped ? "" : "none";
+  updateWearDisplay();
+  document.getElementById("modalOverlay").style.display = "flex";
+}
+
+function openKnifeModal(skin) {
+  modalData = { type: "knife", skin };
+  document.getElementById("modalTitle").textContent = skin.paint_name;
+  document.getElementById("modalWeapon").textContent = KNIFE_NAMES[skin.weapon_defindex] || "Knife";
+  document.getElementById("modalImg").src = skin.image;
+  document.getElementById("wearSlider").value = 0.01;
+  document.getElementById("seedInput").value = 0;
+  document.getElementById("nametagInput").value = "";
+  document.getElementById("stattrakCheck").checked = false;
+  document.getElementById("removeSkinBtn").style.display = "none";
+  updateWearDisplay();
+  document.getElementById("modalOverlay").style.display = "flex";
+}
+
+function closeModal() {
+  document.getElementById("modalOverlay").style.display = "none";
+  modalData = null;
+}
+
+function updateWearDisplay() {
+  const v = parseFloat(document.getElementById("wearSlider").value);
+  document.getElementById("wearValue").textContent = v.toFixed(4);
+}
+
+async function saveSkin() {
+  const sid = getSteamId();
+  if (!sid) return showToast("Enter your Steam ID first", true);
+  if (!modalData) return;
+
+  const wear = parseFloat(document.getElementById("wearSlider").value);
+  const seed = parseInt(document.getElementById("seedInput").value);
+  const nametag = document.getElementById("nametagInput").value.trim() || null;
+  const stattrak = document.getElementById("stattrakCheck").checked;
+
+  if (modalData.type === "knife") {
+    await api("POST", "/api/knife", { steamId: sid, defindex: modalData.skin.weapon_defindex });
+    await api("POST", "/api/skin", { steamId: sid, defindex: modalData.skin.weapon_defindex, paintId: modalData.skin.paint, wear, seed, stattrak, nametag });
+  } else {
+    await api("POST", "/api/skin", { steamId: sid, defindex: modalData.skin.weapon_defindex, paintId: modalData.skin.paint, wear, seed, stattrak, nametag });
+  }
+
+  showToast("Skin applied!");
+  closeModal();
+  await refreshLoadout();
+}
+
+async function removeSkin() {
+  const sid = getSteamId();
+  if (!sid || !modalData) return;
+  await api("DELETE", `/api/skin/${sid}/${modalData.skin.weapon_defindex}`);
+  showToast("Skin removed");
+  closeModal();
+  await refreshLoadout();
+}
+
+// ─── Custom Skins ─────────────────────────────────────────────────────────────
+function renderCustomTab(main) {
+  const equippedMap = {};
+  (loadout.customModels || []).forEach(m => { equippedMap[parseInt(m.ItemId)] = m.ModelPath; });
+
+  main.innerHTML = `<div class="content">
+    <div class="search-bar" style="padding:16px;border-bottom:1px solid #2a2d36;background:#151820">
+      <div style="font-size:12px;color:#888;margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Custom Workshop Skins</div>
+    </div>
+    <div class="skin-grid" id="customGrid"></div>
+  </div>`;
+
+  const grid = document.getElementById("customGrid");
+  if (!customSkins.length) {
+    grid.innerHTML = '<div class="no-content">No custom skins found. Add entries to custom_skins.json</div>';
+    return;
+  }
+
+  grid.innerHTML = customSkins.map(s => {
+    const isEquipped = equippedMap[s.weapon_defindex] === s.model_path;
+    const img = s.image || `https://placehold.co/140x90/252a36/888?text=${encodeURIComponent(s.name)}`;
+    return `<div class="skin-card ${isEquipped ? 'selected' : ''}" onclick="applyCustomSkin(${JSON.stringify(s).replace(/"/g, '&quot;')})">
+      <img src="${img}" alt="${s.name}" loading="lazy" />
+      <div class="skin-name">${s.name}</div>
+      <div style="padding:0 8px 6px;font-size:10px;color:#666">${s.weapon_name} · by ${s.author || 'unknown'}</div>
+      ${isEquipped ? '<div class="selected-badge">✓</div>' : ''}
+    </div>`;
+  }).join('');
+}
+
+async function applyCustomSkin(skin) {
+  const sid = getSteamId();
+  if (!sid) return showToast("Enter your Steam ID first", true);
+
+  const equippedMap = {};
+  (loadout.customModels || []).forEach(m => { equippedMap[parseInt(m.ItemId)] = m.ModelPath; });
+
+  if (equippedMap[skin.weapon_defindex] === skin.model_path) {
+    await api("DELETE", `/api/custom-model/${sid}/${skin.weapon_defindex}`);
+    showToast("Custom skin removed");
+  } else {
+    await api("POST", "/api/custom-model", { steamId: sid, defindex: skin.weapon_defindex, modelPath: skin.model_path });
+    showToast(`${skin.name} applied!`);
+  }
+  await refreshLoadout();
+}
+
+// ─── Utils ────────────────────────────────────────────────────────────────────
+async function api(method, url, body) {
+  const opts = { method, headers: { "Content-Type": "application/json" } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  const data = await res.json();
+  if (!res.ok) { showToast(data.error || "Error", true); throw new Error(data.error); }
+  return data;
+}
+
+let toastTimer;
+function showToast(msg, error = false) {
+  clearTimeout(toastTimer);
+  const existing = document.querySelector(".toast");
+  if (existing) existing.remove();
+  const t = document.createElement("div");
+  t.className = "toast" + (error ? " error" : "");
+  t.textContent = msg;
+  document.body.appendChild(t);
+  toastTimer = setTimeout(() => t.remove(), 3000);
+}
+
+document.getElementById("modalOverlay").addEventListener("click", e => { if (e.target === e.currentTarget) closeModal(); });
+
+init();
+</script>
+</body>
+</html>

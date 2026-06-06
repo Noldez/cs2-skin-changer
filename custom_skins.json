@@ -1,0 +1,11 @@
+[
+  {
+    "id": "nozb1_ramen_m4a4",
+    "name": "Ramen M4A4",
+    "weapon_defindex": 60,
+    "weapon_name": "M4A1-S",
+    "model_path": "weapons/nozb1/ramen_m4a4/ramen_m4a4_ag2.vmdl",
+    "image": null,
+    "author": "nozb1"
+  }
+]
