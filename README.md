@@ -4,7 +4,7 @@ A local web UI for applying CS2 weapon cosmetics via the [WeaponSkin](https://gi
 
 ## Screenshot
 
-<!-- Add screenshot here -->
+![CS2 Skin Changer](docs/screenshot.png)
 
 ## Features
 
